@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webcam Full Window 16:9 with Slideout Menu</title>
+    <title>Webcam Full Window 16:9 with Edge-Triggered Menu</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -56,24 +56,6 @@
             left: 0; /* Slide in */
         }
 
-        #menuToggle {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            padding: 10px;
-            font-size: 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            z-index: 30;
-        }
-
-        #menuToggle:hover {
-            background-color: #45a049;
-        }
-
         .controls {
             display: flex;
             flex-direction: column;
@@ -122,6 +104,16 @@
             border-radius: 5px;
             z-index: 10;
         }
+
+        /* Trigger Zone */
+        #triggerZone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 20px; /* Trigger area width */
+            height: 100%;
+            z-index: 30;
+        }
     </style>
 </head>
 <body>
@@ -129,7 +121,7 @@
         <video id="video" autoplay muted></video>
     </div>
 
-    <button id="menuToggle">☰ Menu</button>
+    <div id="triggerZone"></div>
     <div id="menu">
         <div class="controls">
             <select id="cameraSelect"></select>
@@ -148,7 +140,7 @@
         const pipBtn = document.getElementById('pipBtn');
         const stopBtn = document.getElementById('stopBtn');
         const menu = document.getElementById('menu');
-        const menuToggle = document.getElementById('menuToggle');
+        const triggerZone = document.getElementById('triggerZone');
         const errorMessage = document.getElementById('errorMessage');
         let stream = null;
 
@@ -156,9 +148,14 @@
             errorMessage.textContent = 'This page must be served over HTTPS to access the webcam. GitHub Pages should use HTTPS by default.';
         }
 
-        // Toggle slideout menu
-        menuToggle.addEventListener('click', () => {
-            menu.classList.toggle('open');
+        // Show menu when mouse enters trigger zone
+        triggerZone.addEventListener('mouseenter', () => {
+            menu.classList.add('open');
+        });
+
+        // Hide menu when mouse leaves the menu
+        menu.addEventListener('mouseleave', () => {
+            menu.classList.remove('open');
         });
 
         async function populateCameraList() {
