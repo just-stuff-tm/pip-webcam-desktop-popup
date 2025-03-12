@@ -3,28 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webcam PiP 16:9 with Camera Selection</title>
+    <title>Webcam Full Window 16:9</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
             background-image: url('https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #videoContainer {
+            position: relative;
+            width: 100vw;
+            height: 56.25vw; /* 16:9 aspect ratio (9/16 = 0.5625) */
+            max-height: 100vh;
+            max-width: 177.78vh; /* Inverse 16:9 to limit width when height-constrained */
+            background-color: #000;
+            margin: 0 auto;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .controls {
-            margin: 20px 0;
+            position: absolute;
+            bottom: 20px;
             text-align: center;
             background: rgba(255, 255, 255, 0.8);
             padding: 10px;
             border-radius: 5px;
+            z-index: 10;
         }
 
         button {
@@ -54,29 +75,16 @@
             border-radius: 5px;
         }
 
-        #videoContainer {
-            position: relative;
-            width: 640px;
-            height: 360px;
-            background-color: #000;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
         #errorMessage {
+            position: absolute;
+            top: 20px;
             color: red;
-            margin-top: 10px;
-            max-width: 640px;
+            max-width: 80%;
             text-align: center;
             background: rgba(255, 255, 255, 0.8);
             padding: 5px;
             border-radius: 5px;
+            z-index: 10;
         }
     </style>
 </head>
@@ -90,7 +98,6 @@
         <br>
         <button id="startBtn" onclick="startWebcam()">Start Webcam</button>
         <button id="pipBtn" onclick="enterPiP()" disabled>Enter Picture-in-Picture</button>
-        <button id="fullscreenBtn" onclick="enterFullscreen()" disabled>Full Screen</button>
         <button id="stopBtn" onclick="stopWebcam()" disabled>Stop Webcam</button>
     </div>
     <div id="errorMessage"></div>
@@ -101,12 +108,10 @@
         const cameraSelect = document.getElementById('cameraSelect');
         const startBtn = document.getElementById('startBtn');
         const pipBtn = document.getElementById('pipBtn');
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
         const stopBtn = document.getElementById('stopBtn');
         const errorMessage = document.getElementById('errorMessage');
         let stream = null;
 
-        // Check if the page is in a secure context
         if (!window.isSecureContext) {
             errorMessage.textContent = 'This page must be served over HTTPS to access the webcam. GitHub Pages should use HTTPS by default.';
         }
@@ -165,7 +170,6 @@
                 video.srcObject = stream;
                 startBtn.disabled = true;
                 pipBtn.disabled = false;
-                fullscreenBtn.disabled = false;
                 stopBtn.disabled = false;
             } catch (error) {
                 console.error('Detailed webcam error:', error.name, error.message);
@@ -198,21 +202,6 @@
             }
         }
 
-        async function enterFullscreen() {
-            try {
-                if (!document.fullscreenElement) {
-                    await videoContainer.requestFullscreen();
-                    fullscreenBtn.textContent = 'Exit Full Screen';
-                } else {
-                    await document.exitFullscreen();
-                    fullscreenBtn.textContent = 'Full Screen';
-                }
-            } catch (error) {
-                console.error('Error entering fullscreen:', error);
-                errorMessage.textContent = 'Full screen failed: ' + error.message;
-            }
-        }
-
         function stopWebcam() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
@@ -221,27 +210,17 @@
             video.srcObject = null;
             startBtn.disabled = false;
             pipBtn.disabled = true;
-            fullscreenBtn.disabled = true;
             stopBtn.disabled = true;
             errorMessage.textContent = '';
             
             if (document.pictureInPictureElement) {
                 document.exitPictureInPicture();
             }
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
         }
 
         video.addEventListener('leavepictureinpicture', () => {
             if (!stream) {
                 pipBtn.disabled = true;
-            }
-        });
-
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement && stream) {
-                fullscreenBtn.textContent = 'Full Screen';
             }
         });
 
