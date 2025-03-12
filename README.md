@@ -22,5 +22,6 @@ The #menuToggle button is gone, replaced by the edge-trigger mechanism.
 Video and Layout:
 Video container still fills the window with a 16:9 aspect ratio.
 
-#errorMessage remains at the top for visibility.
+
+Follow on <a href="https://x.com/just_stuff_tm">X</a> if you like this tool!
 
