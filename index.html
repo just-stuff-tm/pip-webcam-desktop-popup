@@ -22,7 +22,7 @@
         .controls {
             margin: 20px 0;
             text-align: center;
-            background: rgba(255, 255, 255, 0.8); /* Semi-transparent background for readability */
+            background: rgba(255, 255, 255, 0.8);
             padding: 10px;
             border-radius: 5px;
         }
@@ -106,10 +106,15 @@
         const errorMessage = document.getElementById('errorMessage');
         let stream = null;
 
+        // Check if the page is in a secure context
+        if (!window.isSecureContext) {
+            errorMessage.textContent = 'This page must be served over HTTPS to access the webcam. GitHub Pages should use HTTPS by default.';
+        }
+
         async function populateCameraList() {
             try {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-                    throw new Error('Media devices API not supported');
+                    throw new Error('Media devices API not supported in this browser.');
                 }
 
                 const devices = await navigator.mediaDevices.enumerateDevices();
@@ -119,7 +124,7 @@
                 if (videoDevices.length === 0) {
                     cameraSelect.innerHTML = '<option>No cameras found</option>';
                     startBtn.disabled = true;
-                    errorMessage.textContent = 'No video input devices detected.';
+                    errorMessage.textContent = 'No video input devices detected. Please connect a webcam.';
                     return;
                 }
 
@@ -166,13 +171,15 @@
                 console.error('Detailed webcam error:', error.name, error.message);
                 let userMessage = 'Could not access webcam: ';
                 if (error.name === 'NotAllowedError') {
-                    userMessage += 'Permission denied. Please allow camera access in your browser.';
+                    userMessage += 'Permission denied. Please allow camera access in your browser settings.';
                 } else if (error.name === 'NotFoundError') {
                     userMessage += 'No camera found with the selected ID.';
                 } else if (error.name === 'OverconstrainedError') {
                     userMessage += 'Camera doesn\'t support the requested settings.';
                 } else if (error.name === 'NotReadableError') {
                     userMessage += 'Camera is already in use by another application.';
+                } else if (error.name === 'SecurityError') {
+                    userMessage += 'Camera access blocked due to security settings. Ensure HTTPS and check browser permissions.';
                 } else {
                     userMessage += error.message;
                 }
@@ -195,8 +202,10 @@
             try {
                 if (!document.fullscreenElement) {
                     await videoContainer.requestFullscreen();
+                    fullscreenBtn.textContent = 'Exit Full Screen';
                 } else {
                     await document.exitFullscreen();
+                    fullscreenBtn.textContent = 'Full Screen';
                 }
             } catch (error) {
                 console.error('Error entering fullscreen:', error);
@@ -207,7 +216,7 @@
         function stopWebcam() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
-                stream = null);
+                stream = null;
             }
             video.srcObject = null;
             startBtn.disabled = false;
@@ -233,8 +242,6 @@
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement && stream) {
                 fullscreenBtn.textContent = 'Full Screen';
-            } else if (document.fullscreenElement) {
-                fullscreenBtn.textContent = 'Exit Full Screen';
             }
         });
 
