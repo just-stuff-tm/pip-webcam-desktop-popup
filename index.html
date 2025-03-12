@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam PiP 16:9 with Camera Selection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        select {
+            padding: 10px;
+            font-size: 16px;
+            margin: 5px;
+            border-radius: 5px;
+        }
+
+        #videoContainer {
+            position: relative;
+            width: 640px;
+            height: 360px;
+            background-color: #000;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #errorMessage {
+            color: red;
+            margin-top: 10px;
+            max-width: 640px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="videoContainer">
+        <video id="video" autoplay muted></video>
+    </div>
+
+    <div class="controls">
+        <select id="cameraSelect"></select>
+        <br>
+        <button id="startBtn" onclick="startWebcam()">Start Webcam</button>
+        <button id="pipBtn" onclick="enterPiP()" disabled>Enter Picture-in-Picture</button>
+        <button id="stopBtn" onclick="stopWebcam()" disabled>Stop Webcam</button>
+    </div>
+    <div id="errorMessage"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const startBtn = document.getElementById('startBtn');
+        const pipBtn = document.getElementById('pipBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        let stream = null;
+
+        async function populateCameraList() {
+            try {
+                // Check if mediaDevices is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    throw new Error('Media devices API not supported');
+                }
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                cameraSelect.innerHTML = '';
+                if (videoDevices.length === 0) {
+                    cameraSelect.innerHTML = '<option>No cameras found</option>';
+                    startBtn.disabled = true;
+                    errorMessage.textContent = 'No video input devices detected.';
+                    return;
+                }
+
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error enumerating devices:', error);
+                cameraSelect.innerHTML = '<option>Error loading cameras</option>';
+                startBtn.disabled = true;
+                errorMessage.textContent = 'Error loading camera list: ' + error.message;
+            }
+        }
+
+        async function startWebcam() {
+            errorMessage.textContent = ''; // Clear previous errors
+            try {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+
+                const deviceId = cameraSelect.value;
+                if (!deviceId) {
+                    throw new Error('No camera selected');
+                }
+
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        deviceId: deviceId ? { exact: deviceId } : undefined,
+                        aspectRatio: { ideal: 16/9 } // Flexible aspect ratio
+                    },
+                    audio: false 
+                });
+                
+                video.srcObject = stream;
+                startBtn.disabled = true;
+                pipBtn.disabled = false;
+                stopBtn.disabled = false;
+            } catch (error) {
+                console.error('Detailed webcam error:', error.name, error.message);
+                let userMessage = 'Could not access webcam: ';
+                if (error.name === 'NotAllowedError') {
+                    userMessage += 'Permission denied. Please allow camera access in your browser.';
+                } else if (error.name === 'NotFoundError') {
+                    userMessage += 'No camera found with the selected ID.';
+                } else if (error.name === 'OverconstrainedError') {
+                    userMessage += 'Camera doesn\'t support the requested settings.';
+                } else if (error.name === 'NotReadableError') {
+                    userMessage += 'Camera is already in use by another application.';
+                } else {
+                    userMessage += error.message;
+                }
+                errorMessage.textContent = userMessage;
+            }
+        }
+
+        async function enterPiP() {
+            try {
+                if (video !== document.pictureInPictureElement) {
+                    await video.requestPictureInPicture();
+                }
+            } catch (error) {
+                console.error('Error entering PiP:', error);
+                errorMessage.textContent = 'Picture-in-Picture failed: ' + error.message;
+            }
+        }
+
+        function stopWebcam() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            video.srcObject = null;
+            startBtn.disabled = false;
+            pipBtn.disabled = true;
+            stopBtn.disabled = true;
+            errorMessage.textContent = '';
+            
+            if (document.pictureInPictureElement) {
+                document.exitPictureInPicture();
+            }
+        }
+
+        video.addEventListener('leavepictureinpicture', () => {
+            if (!stream) {
+                pipBtn.disabled = true;
+            }
+        });
+
+        window.addEventListener('load', populateCameraList);
+        cameraSelect.addEventListener('change', () => {
+            if (stream) {
+                stopWebcam();
+                startWebcam();
+            }
+        });
+
+        window.onunload = function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+    </script>
+</body>
+</html>
